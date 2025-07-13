@@ -1,0 +1,4 @@
+/movies
+*.mkv*
+*.sh.*
+*.backup*
