@@ -10,12 +10,14 @@ A unified video downloader script that combines download, streaming, and play-wh
   - **Stream Only** (`--stream`): Stream video directly without saving
   - **Record** (`--record`): Use mpv's built-in stream recording feature
 
-- **Flexible Format Selection:** Interactive format selection or specify custom yt-dlp format codes
-- **Resume Support:** Continue interrupted downloads (except in play mode)
-- **Customizable Output:** Choose container format and filename
-- **Multiple Player Support:** Works with mpv, vlc, and other media players
-- **Robust Error Handling:** Proper cleanup of background processes and signal handling
-- **Colored Output:** Clear, colored console messages for better user experience
+- **Enhanced Interactive Mode**: If `fzf` is installed, the script provides a rich, filterable menu for selecting video and audio formats.
+- **Smart Filename Suggestions**: Automatically suggests filenames based on the video title.
+- **Flexible Format Selection:** Interactively select formats or specify custom yt-dlp format codes.
+- **Resume Support:** Continue interrupted downloads (except in play mode).
+- **Customizable Output:** Choose container format and filename.
+- **Multiple Player Support:** Works with mpv, vlc, and other media players.
+- **Robust Error Handling:** Proper cleanup of background processes and signal handling.
+- **Colored Output:** Clear, colored console messages for better user experience.
 
 ## Requirements
 
@@ -24,26 +26,27 @@ A unified video downloader script that combines download, streaming, and play-wh
 - **bash**: The script is written in bash
 
 ### Optional Dependencies (mode-dependent)
-- **mpv** (default player): Required for `--play`, `--stream`, and `--record` modes
-- **vlc** or other media players: Can be specified with `--player` option
-- **tee**: Used internally for play-while-downloading (usually pre-installed on Unix systems)
+- **fzf**: Highly recommended for an enhanced interactive format selection experience.
+- **mpv** (default player): Required for `--play`, `--stream`, and `--record` modes.
+- **vlc** or other media players: Can be specified with `--player` option.
+- **tee**: Used internally for play-while-downloading (usually pre-installed on Unix systems).
 
 ### Installation of Dependencies
 
 #### Ubuntu/Debian
 ```bash
 sudo apt update
-sudo apt install yt-dlp mpv
+sudo apt install yt-dlp mpv fzf
 ```
 
 #### macOS (with Homebrew)
 ```bash
-brew install yt-dlp mpv
+brew install yt-dlp mpv fzf
 ```
 
 #### Arch Linux
 ```bash
-sudo pacman -S yt-dlp mpv
+sudo pacman -S yt-dlp mpv fzf
 ```
 
 ## Usage
@@ -71,10 +74,10 @@ sudo pacman -S yt-dlp mpv
 
 ### Basic Download
 ```bash
-# Download with default settings
+# Download with interactive format selection and auto-suggested filename
 ./ytdl-plus.sh https://youtu.be/dQw4w9WgXcQ
 
-# Download with specific format and filename
+# Download with a specific format and filename
 ./ytdl-plus.sh -f "bestvideo[height<=720]+bestaudio" -o "my_video" https://youtu.be/dQw4w9WgXcQ
 
 # Download in MP4 format
@@ -117,10 +120,13 @@ This approach is more reliable than watching for temporary files and ensures the
 
 ### Interactive Format Selection
 When not in silent mode, the script will:
-1. Fetch available video formats using `yt-dlp --list-formats`
-2. Display the options to the user
-3. Allow selection of specific format codes
-4. Fall back to 'best' quality if no selection is made
+1. Fetch available video formats using `yt-dlp --list-formats`.
+2. If `fzf` is installed, it will display an interactive, filterable menu. You can use the arrow keys to navigate, type to filter, and TAB to select multiple formats (e.g., for separate video and audio).
+3. If `fzf` is not installed, it will fall back to a simple text prompt.
+4. The selected format codes are then used for the download.
+
+### Smart Filename Suggestion
+In interactive mode, the script fetches the video's title using `yt-dlp --get-title` and suggests a sanitized version as the default filename. This is more user-friendly than a generic timestamp.
 
 ## File Structure
 
@@ -143,17 +149,18 @@ The script includes robust error handling:
 
 ### Common Issues
 
-1. **"yt-dlp not found"**: Install yt-dlp using your package manager
-2. **"mpv not found"**: Install mpv or specify a different player with `--player`
-3. **Permission denied**: Make the script executable with `chmod +x ytdl-plus.sh`
-4. **Download fails**: Try different format codes or check if the URL is accessible
+1. **"yt-dlp not found"**: Install yt-dlp using your package manager.
+2. **"mpv not found"**: Install mpv or specify a different player with `--player`.
+3. **"fzf not found"**: Install fzf for the enhanced interactive menu. The script will work without it but will provide a basic prompt.
+4. **Permission denied**: Make the script executable with `chmod +x ytdl-plus.sh`.
+5. **Download fails**: Try different format codes or check if the URL is accessible.
 
 ### Debug Tips
 
-- Use `-s` (silent mode) to avoid interactive prompts in automated scenarios
-- Check available formats first: `yt-dlp --list-formats <url>`
-- Test with `--stream` mode first to verify the URL works
-- Use `--player vlc` if mpv is not available
+- Use `-s` (silent mode) to avoid interactive prompts in automated scenarios.
+- Check available formats first: `yt-dlp --list-formats <url>`.
+- Test with `--stream` mode first to verify the URL works.
+- Use `--player vlc` if mpv is not available.
 
 ## License
 

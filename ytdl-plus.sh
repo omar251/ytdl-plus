@@ -118,6 +118,12 @@ check_dependencies() {
         print_error "'yt-dlp' is not installed but is required for downloading."
         exit 1
     fi
+
+    # fzf is optional, only recommend if in interactive mode
+    if [[ "$silent_mode" == false ]] && ! command -v fzf &> /dev/null; then
+        print_warning "Optional: 'fzf' is not installed. Falling back to basic prompt."
+        print_info "Install 'fzf' for a better interactive format selection experience."
+    fi
 }
 
 # Validate that the provided URL looks like a URL
@@ -172,12 +178,12 @@ while [[ $# -gt 0 ]]; do
             shift
             break
             ;;
-        -*) # Unknown option
+        -*)
             print_error "Unknown option: $1"
             show_help
             exit 1
             ;;
-        *)  # Positional argument (the URL)
+        *)
             if [[ -z "${url:-}" ]]; then
                 url="$1"
             else
@@ -211,8 +217,42 @@ get_streams() {
     fi
 
     print_info "Fetching available streams..."
-    # Fetch and display formats from yt-dlp
-    if streams=$(yt-dlp --list-formats "$url" 2>/dev/null); then
+    local streams
+    streams=$(yt-dlp --list-formats "$url" 2>/dev/null)
+
+    if [[ -z "$streams" ]]; then
+        print_warning "Could not fetch streams. Using default quality."
+        return
+    fi
+
+    # Use fzf for interactive selection if available
+    if command -v fzf &> /dev/null; then
+        print_info "Use TAB to select multiple formats (e.g., video + audio), Enter to confirm."
+        
+        # fzf command with a preview window, defined as a bash array
+        local -a fzf_cmd=(
+            fzf --multi --prompt="Select format(s): " \
+            --header="Press TAB to select multiple, Enter to confirm" \
+            --preview="echo {}" --preview-window=up:3:wrap
+        )
+        
+        # Get the list of formats, dynamically finding the header
+        local header_line=$(echo "$streams" | grep -n -m 1 "^ID" | cut -d: -f1)
+        local format_list=$(echo "$streams" | tail -n +$((header_line + 1)))
+        
+        # Show the fzf menu and get the selected formats
+        local selection=$(echo "$format_list" | "${fzf_cmd[@]}")
+
+        if [[ -n "$selection" ]]; then
+            # Combine selected format IDs with a '+'
+            format_flag=$(echo "$selection" | awk '{print $1}' | tr '\n' '+' | sed 's/+$//')
+            print_info "Selected format: $format_flag"
+        else
+            print_info "No format selected. Defaulting to 'best'."
+            format_flag="best"
+        fi
+    else
+        # Fallback to the original text-based prompt
         echo -e "Available streams:\n$streams"
         print_info "You can specify a format with '-f'. Examples:"
         echo "  - 'best':           Best quality with combined video and audio."
@@ -223,9 +263,9 @@ get_streams() {
 
         if [[ -n "$format_choice" ]]; then
             format_flag="$format_choice"
+        else
+            format_flag="best"
         fi
-    else
-        print_warning "Could not fetch streams. Using default quality."
     fi
 }
 
@@ -241,7 +281,15 @@ get_filename() {
     # If no output filename is set, generate or ask for one
     if [[ -z "${output_filename:-}" ]]; then
         local suggested_name
-        suggested_name=$(date +"%Y-%m-%d_%H%M%S")
+        # Try to get the video title for a better default filename
+        print_info "Fetching video title for filename suggestion..."
+        suggested_name=$(yt-dlp --get-title "$url" 2>/dev/null | sed 's/[^a-zA-Z0-9._-]/_/g')
+
+        # Fallback to timestamp if title fetch fails
+        if [[ -z "$suggested_name" ]]; then
+            suggested_name=$(date +"%Y-%m-%d_%H%M%S")
+        fi
+
         if [[ "$silent_mode" == false ]]; then
             read -p "Enter filename (suggestion: $suggested_name): " output_filename
             # Use suggestion if input is empty
